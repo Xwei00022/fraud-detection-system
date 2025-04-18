@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h2>Fraud Alerts</h2>
+
+    <div class="btn-group mb-3">
+        {% for status_option in ['new', 'investigating', 'confirmed', 'false_positive'] %}
+            <a href="{{ url_for('fraud_alerts', status=status_option) }}"
+               class="btn {% if status == status_option %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                {{ status_option|replace('_', ' ')|title }}
+            </a>
+        {% endfor %}
+    </div>
+
+    {% if not alerts %}
+        <div class="alert alert-info">
+            No fraud alerts found with status '{{ status }}'.
+            {% if status != 'new' %}
+                <a href="{{ url_for('fraud_alerts', status='new') }}" class="alert-link">
+                    View new alerts instead
+                </a>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="card mt-2">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Alert ID</th>
+                                <th>Transaction</th>
+                                <th>Customer</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                                <th>Rule</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in alerts %}
+                            <tr>
+                                <td>{{ alert.alert_id }}</td>
+                                <td>{{ alert.transaction_id }}</td>
+                                <td>{{ alert.first_name }} {{ alert.last_name }}</td>
+                                <td>${{ "%.2f"|format(alert.amount) }}</td>
+                                <td>{{ alert.transaction_date }}</td>
+                                <td>{{ alert.rule_name }}</td>
+                                <td>
+                                    {% for i in range(alert.severity) %}★{% endfor %}
+                                    {% for i in range(5 - alert.severity) %}☆{% endfor %}
+                                </td>
+                                <td>
+                                    <span class="badge
+                                        {% if alert.status == 'new' %}bg-primary
+                                        {% elif alert.status == 'investigating' %}bg-warning text-dark
+                                        {% elif alert.status == 'confirmed' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ alert.status|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal" data-bs-target="#alertModal{{ alert.alert_id }}">
+                                        Update
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Modal for each alert -->
+                            <div class="modal fade" id="alertModal{{ alert.alert_id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Update Alert #{{ alert.alert_id }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="POST" action="{{ url_for('update_alert', alert_id=alert.alert_id) }}">
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Status</label>
+                                                    <select class="form-select" name="status">
+                                                        <option value="new" {% if alert.status == 'new' %}selected{% endif %}>New</option>
+                                                        <option value="investigating" {% if alert.status == 'investigating' %}selected{% endif %}>Investigating</option>
+                                                        <option value="confirmed" {% if alert.status == 'confirmed' %}selected{% endif %}>Confirmed Fraud</option>
+                                                        <option value="false_positive" {% if alert.status == 'false_positive' %}selected{% endif %}>False Positive</option>
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label class="form-label">Notes</label>
+                                                    <textarea class="form-control" name="notes" rows="3">{{ alert.notes or '' }}</textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                <button type="submit" class="btn btn-primary">Save changes</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+               {% set total_pages = (total // per_page) + (1 if total % per_page else 0) %}
+{% set start_page = (page - 2) if (page - 2) > 0 else 1 %}
+{% set end_page = (page + 2) if (page + 2) <= total_pages else total_pages %}
+
+{% if total_pages > 1 %}
+<nav aria-label="Fraud alert pagination">
+  <ul class="pagination justify-content-center mt-4">
+
+    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('fraud_alerts', status=status, page=1) }}">First</a>
+    </li>
+
+    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('fraud_alerts', status=status, page=page-1) }}">Previous</a>
+    </li>
+
+    {% for p in range(start_page, end_page + 1) %}
+      <li class="page-item {% if p == page %}active{% endif %}">
+        <a class="page-link" href="{{ url_for('fraud_alerts', status=status, page=p) }}">{{ p }}</a>
+      </li>
+    {% endfor %}
+
+    <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('fraud_alerts', status=status, page=page+1) }}">Next</a>
+    </li>
+
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+      <a class="page-link" href="{{ url_for('fraud_alerts', status=status, page=total_pages) }}">Last</a>
+    </li>
+
+  </ul>
+</nav>
+{% endif %}
+
+
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
